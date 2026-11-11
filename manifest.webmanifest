@@ -1,0 +1,24 @@
+{
+ "name": "دليل أسعار فيليبس وإيكولينك 2026",
+ "short_name": "أسعار فيليبس",
+ "lang": "ar",
+ "dir": "rtl",
+ "start_url": "./",
+ "scope": "./",
+ "display": "standalone",
+ "background_color": "#f4f4f6",
+ "theme_color": "#111114",
+ "icons": [
+  {
+   "src": "icon-192.png",
+   "sizes": "192x192",
+   "type": "image/png"
+  },
+  {
+   "src": "icon-512.png",
+   "sizes": "512x512",
+   "type": "image/png",
+   "purpose": "any maskable"
+  }
+ ]
+}
