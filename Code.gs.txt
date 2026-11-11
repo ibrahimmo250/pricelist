@@ -1,0 +1,84 @@
+/**
+ * Philips & Ecolink price guide – orders log + distributor control.
+ * Paste this whole file into Extensions > Apps Script of a new Google Sheet,
+ * run setup() once, then Deploy > New deployment > Web app (Execute as: Me, Access: Anyone).
+ */
+const ADMIN_KEY = 'QzrfcyV-4fFeRGyMgotftb_W';           // must match the key inside admin.html
+const DISTRIBUTORS = ["El-Bsheer", "Bahgat Trading Estab", "Mohamed Hassan Amin", "Diabco Electric", "Ultra Light"];       // company names, as shown in the site
+
+function setup() {
+  const ss = SpreadsheetApp.getActive();
+  let o = ss.getSheetByName('Orders');
+  if (!o) {
+    o = ss.insertSheet('Orders');
+    o.appendRow(['Date', 'Order ID', 'Company', 'Contact', 'Notes', 'Items', 'Total (EGP incl. VAT)', 'Status']);
+    o.setFrozenRows(1);
+  }
+  let d = ss.getSheetByName('Distributors');
+  if (!d) {
+    d = ss.insertSheet('Distributors');
+    d.appendRow(['Company', 'Active']);
+    DISTRIBUTORS.forEach(n => d.appendRow([n, true]));
+    d.setFrozenRows(1);
+  }
+}
+
+function json_(obj) {
+  return ContentService.createTextOutput(JSON.stringify(obj)).setMimeType(ContentService.MimeType.JSON);
+}
+
+function rows_(name) {
+  const v = SpreadsheetApp.getActive().getSheetByName(name).getDataRange().getValues();
+  const h = v.shift();
+  return { h, v };
+}
+
+function doGet(e) {
+  const p = e.parameter || {};
+  if (p.action === 'status') {
+    const { v } = rows_('Distributors');
+    const r = v.find(x => String(x[0]) === p.co);
+    return json_({ ok: true, active: r ? r[1] !== false && String(r[1]).toUpperCase() !== 'FALSE' : true });
+  }
+  if (p.key !== ADMIN_KEY) return json_({ ok: false, error: 'key' });
+  if (p.action === 'orders') {
+    const { v } = rows_('Orders');
+    return json_({ ok: true, orders: v.map(r => ({ date: r[0], id: r[1], co: r[2], contact: r[3], note: r[4], items: r[5], total: r[6], status: r[7] })) });
+  }
+  if (p.action === 'distributors') {
+    const { v } = rows_('Distributors');
+    return json_({ ok: true, list: v.map(r => ({ co: r[0], active: r[1] !== false && String(r[1]).toUpperCase() !== 'FALSE' })) });
+  }
+  return json_({ ok: false, error: 'action' });
+}
+
+function doPost(e) {
+  const d = JSON.parse(e.postData.contents);
+  const lock = LockService.getScriptLock(); lock.waitLock(10000);
+  try {
+    if (d.action === 'order') {
+      const sh = SpreadsheetApp.getActive().getSheetByName('Orders');
+      const ids = sh.getRange(1, 2, sh.getLastRow(), 1).getValues().flat();
+      if (ids.indexOf(d.id) === -1) {
+        sh.appendRow([new Date(), d.id, d.co, d.contact || '', d.note || '', JSON.stringify(d.items), d.total, 'New']);
+      }
+      return json_({ ok: true });
+    }
+    if (d.key !== ADMIN_KEY) return json_({ ok: false, error: 'key' });
+    if (d.action === 'setStatus') {
+      const sh = SpreadsheetApp.getActive().getSheetByName('Orders');
+      const ids = sh.getRange(1, 2, sh.getLastRow(), 1).getValues().flat();
+      const i = ids.indexOf(d.id);
+      if (i > 0) sh.getRange(i + 1, 8).setValue(d.status);
+      return json_({ ok: i > 0 });
+    }
+    if (d.action === 'setActive') {
+      const sh = SpreadsheetApp.getActive().getSheetByName('Distributors');
+      const names = sh.getRange(1, 1, sh.getLastRow(), 1).getValues().flat();
+      const i = names.indexOf(d.co);
+      if (i > 0) sh.getRange(i + 1, 2).setValue(!!d.active);
+      return json_({ ok: i > 0 });
+    }
+    return json_({ ok: false, error: 'action' });
+  } finally { lock.releaseLock(); }
+}
