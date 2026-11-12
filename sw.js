@@ -1,5 +1,5 @@
 // Offline support for the price guide. Version changes on every new upload.
-const CACHE='pricelist-d1001032c2';
+const CACHE='pricelist-ac955503b4';
 const CORE=['./','index.html','manifest.webmanifest','icon-192.png','icon-512.png','order-excel.js','xlsx.mini.min.js'];
 const PDFS=["BRC010-Solar-Pathway.pdf","BVC010-Solar-Flood.pdf","BVC080-G2-Solar-Flood.pdf","BVP150-100W-CW-G4.pdf","BVP150-10W-CW-G4.pdf","BVP150-150W-CW-G4.pdf","BVP150-200W-CW-G4.pdf","BVP150-20W-CW-G4.pdf","BVP150-30W-CW-G4.pdf","BVP150-50W-CW-G4.pdf","BVP150-70W-CW-G4.pdf","GU10-CorePro-4.6W-830.pdf","GU10-CorePro-4W-830-DIM.pdf","GU10-Master-4.9W-930-DIM.pdf","RC048B-840-G3.pdf","RC048B-865-G3.pdf"];
 self.addEventListener('install',e=>{self.skipWaiting();e.waitUntil(caches.open(CACHE).then(async c=>{await c.addAll(CORE);for(const f of PDFS){try{await c.add(f)}catch(_){}}}))});
