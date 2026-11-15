@@ -52,6 +52,7 @@
     wb.Workbook = { Views: [{ RTL: true }] };
     return wb;
   }
+  window.loadXLSX = load;
   // one order -> one file
   window.exportOrderXlsx = function (o) {
     return load().then(function () {
