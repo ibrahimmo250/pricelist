@@ -22,11 +22,16 @@
     var rows = [['رقم الطلب', o.id], ['الموزع', o.co], ['التاريخ', fmtDate(o.date)]];
     if (o.note) rows.push(['ملاحظات', o.note]);
     rows.push([]);
-    rows.push(['#', 'الكود (12NC)', 'الوصف (English)', 'الوصف بالعربي', 'الكمية', 'سعر الوحدة (من غير ضريبة)', 'الإجمالي (من غير ضريبة)']);
+    var dl = o.delivery && typeof o.delivery === 'object' ? o.delivery : null;
+    var head = ['#', 'الكود (12NC)', 'الوصف (English)', 'الوصف بالعربي', 'الكمية', 'سعر الوحدة (من غير ضريبة)', 'الإجمالي (من غير ضريبة)'];
+    if (dl) head.push('الكمية المسلّمة');
+    rows.push(head);
     var first = rows.length + 1, sub = 0;
     o.items.forEach(function (it, i) {
       var u = ex(it.price), q = Number(it.qty); sub += u * q;
-      rows.push([i + 1, String(it.code), it.name || '', it.ar || '', q, u, r2(u * q)]);
+      var row = [i + 1, String(it.code), it.name || '', it.ar || '', q, u, r2(u * q)];
+      if (dl) row.push(Number(dl[it.code] || 0));
+      rows.push(row);
     });
     var last = rows.length; rows.push([]);
     var t = rows.length + 1;
@@ -43,7 +48,7 @@
     ws['G' + t] = num(sub, 'SUM(G' + first + ':G' + last + ')');
     ws['G' + (t + 1)] = num(vat, 'ROUND(G' + t + '*0.14,2)');
     ws['G' + (t + 2)] = num(r2(sub + vat), 'G' + t + '+G' + (t + 1));
-    ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 40 }, { wch: 42 }, { wch: 9 }, { wch: 24 }, { wch: 24 }];
+    ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 40 }, { wch: 42 }, { wch: 9 }, { wch: 24 }, { wch: 24 }, { wch: 16 }];
     return ws;
   }
   function book(sheets) {
@@ -62,11 +67,11 @@
   // many orders -> one file: a lines sheet with every item, plus one sheet per order
   window.exportOrdersXlsx = function (list, name) {
     return load().then(function () {
-      var rows = [['التاريخ', 'رقم الطلب', 'الموزع', 'الحالة', 'الكود (12NC)', 'الوصف (English)', 'الوصف بالعربي', 'الكمية', 'سعر الوحدة (من غير ضريبة)', 'الإجمالي (من غير ضريبة)']];
+      var rows = [['التاريخ', 'رقم الطلب', 'الموزع', 'الحالة', 'الكود (12NC)', 'الوصف (English)', 'الوصف بالعربي', 'الكمية', 'سعر الوحدة (من غير ضريبة)', 'الإجمالي (من غير ضريبة)', 'الكمية المسلّمة']];
       list.forEach(function (o) {
         o.items.forEach(function (it) {
           var u = ex(it.price);
-          rows.push([fmtDate(o.date), o.id, o.co, o.statusAr || o.status || '', String(it.code), it.name || '', it.ar || '', Number(it.qty), u, r2(u * it.qty)]);
+          rows.push([fmtDate(o.date), o.id, o.co, o.statusAr || o.status || '', String(it.code), it.name || '', it.ar || '', Number(it.qty), u, r2(u * it.qty), Number((o.delivery || {})[it.code] || 0)]);
         });
       });
       var ws = XLSX.utils.aoa_to_sheet(rows), n = rows.length;
@@ -81,7 +86,7 @@
       ws['J' + t] = num(sub, 'SUM(J2:J' + n + ')');
       ws['J' + (t + 1)] = num(r2(sub * VAT), 'ROUND(J' + t + '*0.14,2)');
       ws['J' + (t + 2)] = num(r2(sub * (1 + VAT)), 'J' + t + '+J' + (t + 1));
-      ws['!cols'] = [{ wch: 11 }, { wch: 13 }, { wch: 22 }, { wch: 12 }, { wch: 15 }, { wch: 38 }, { wch: 40 }, { wch: 8 }, { wch: 22 }, { wch: 22 }];
+      ws['!cols'] = [{ wch: 11 }, { wch: 13 }, { wch: 22 }, { wch: 12 }, { wch: 15 }, { wch: 38 }, { wch: 40 }, { wch: 8 }, { wch: 22 }, { wch: 22 }, { wch: 16 }];
       var sheets = [['كل الأصناف', ws]];
       list.slice(0, 200).forEach(function (o, i) { sheets.push([(i + 1) + '-' + safe(o.id).slice(0, 25), orderSheet(o)]); });
       XLSX.writeFile(book(sheets), (name || 'Orders') + '.xlsx');
