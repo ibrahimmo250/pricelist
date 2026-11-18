@@ -58,6 +58,31 @@
     return wb;
   }
   window.loadXLSX = load;
+  // customer quotation (prices incl. VAT, no discount shown)
+  window.exportQuoteXlsx = function (q) {
+    return load().then(function () {
+      var rows = [['عرض سعر'], ['العميل', q.customer || ''], ['التاريخ', fmtDate(q.date)]];
+      if (q.id) rows.push(['رقم العرض', q.id]);
+      rows.push([]);
+      rows.push(['#', 'الوصف', 'الموديل', 'الكود (12NC)', 'الكمية', 'سعر الوحدة (شامل الضريبة)', 'الإجمالي (شامل الضريبة)']);
+      var first = rows.length + 1;
+      q.items.forEach(function (it, i) { rows.push([i + 1, it.ar || '', it.name || '', String(it.code), Number(it.qty), r2(it.unit), r2(it.unit * it.qty)]); });
+      var last = rows.length; rows.push([]);
+      var t = rows.length + 1;
+      rows.push(['', '', '', '', '', 'الإجمالي شامل ضريبة 14%', 0]);
+      if (q.validity) rows.push(['صلاحية العرض', q.validity]);
+      if (q.sig) rows.push([q.sig]);
+      var ws = XLSX.utils.aoa_to_sheet(rows);
+      for (var r = first; r <= last; r++) {
+        ws['D' + r] = { t: 's', v: String(ws['D' + r].v) };
+        ws['F' + r] = num(ws['F' + r].v);
+        ws['G' + r] = num(ws['G' + r].v, 'E' + r + '*F' + r);
+      }
+      ws['G' + t] = num(r2(q.items.reduce(function (a, it) { return a + r2(it.unit * it.qty); }, 0)), 'SUM(G' + first + ':G' + last + ')');
+      ws['!cols'] = [{ wch: 5 }, { wch: 44 }, { wch: 36 }, { wch: 15 }, { wch: 9 }, { wch: 24 }, { wch: 24 }];
+      XLSX.writeFile(book([['عرض سعر', ws]]), 'Quote_' + safe(q.id || 'new') + '_' + safe(q.customer) + '.xlsx');
+    });
+  };
   // one order -> one file
   window.exportOrderXlsx = function (o) {
     return load().then(function () {
